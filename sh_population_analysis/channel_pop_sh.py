@@ -120,6 +120,7 @@ def distance_matrix(xyz):
 #ConstantS - CRITERIA FOR GEOMETRY ANALYSIS 
 C_CF3_diss_dist  =  4.30  # distance of CF3 group from center
 C_F_diss_dist = 4.30
+C_CN_diss_dist  =  4.30
 ###############################################
 
 # GEOMETRY ANALYSIS
@@ -131,6 +132,7 @@ def analyze_novec(dist_mat):
   cf_bonds = 0 # bonds in cf3 group = 3
   cf2_diss = 0
   f_diss = 0
+  cn_diss = 0
   # 1    C CF3       C-CF3  0,1
   if dist_mat[0][1] > C_CF3_diss_dist:  
       for cf3_atoms in range(8,11):
@@ -149,7 +151,10 @@ def analyze_novec(dist_mat):
          cf3_diss += 1 
       if cf_bonds == 2:
          cf2_diss += 1
-          
+
+  if dist_mat[0][2] > C_CN_diss_dist:
+      cn_diss += 1  
+
   for cf3_atoms in range(5,11):
       if (dist_mat[0][cf3_atoms] > C_F_diss_dist 
           and dist_mat[1][cf3_atoms] > C_F_diss_dist 
@@ -162,7 +167,8 @@ def analyze_novec(dist_mat):
   elif cf3_diss == 2 and f_diss == 0: channel = 2
   elif cf3_diss == 0 and f_diss == 1: channel = 3
   elif cf3_diss == 0 and f_diss == 2: channel = 4
-  elif cf2_diss == 1 and f_diss == 1: channel = 5  
+  elif cf2_diss == 1 and f_diss == 1: channel = 5 
+  elif cf3_diss == 0 and f_diss == 0 and cn_diss == 1: channel = 6 
   """
   atom order:
   0    C CENTRAL   
@@ -212,7 +218,7 @@ def channel_statistics(analyze_geoms):
     #Calc std binomidal distribution 95% reliability
     for step in range(0,nsteps):     
         for st in range(nstates):
-            if (step == 100) or (not step % (200+st*20)):
+            if (step == 100) or (not step % (200)):
                 stde[step][st]=math.sqrt(norm_pop[step][st]*(1-norm_pop[step][st])/row_norms.reshape(nsteps,1)[step])*1.96  # binobidal normal dist    
    
     alive_mat=np.concatenate((timerow,row_norms.reshape(nsteps,1)),axis=1)	
@@ -247,7 +253,7 @@ if __name__ == "__main__":
       natoms = 12
       lines_per_mol = 14
       AU_TO_FS   = 0.024189
-      n_channels = 6
+      n_channels = 7
       n_steps    = 2100 # number of simulation steps, +1 since upper limit index is exluded
       timestep   = 10        # 
       movies,geoms=input_check()
