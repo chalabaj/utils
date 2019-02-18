@@ -218,7 +218,7 @@ def channel_statistics(analyze_geoms):
     #Calc std binomidal distribution 95% reliability
     for step in range(0,nsteps):     
         for st in range(nstates):
-            if (step == 100) or (not step % (200)):
+            if (step == 100) or (not step % (200+(st*20))):
                 stde[step][st]=math.sqrt(norm_pop[step][st]*(1-norm_pop[step][st])/row_norms.reshape(nsteps,1)[step])*1.96  # binobidal normal dist    
    
     alive_mat=np.concatenate((timerow,row_norms.reshape(nsteps,1)),axis=1)	
