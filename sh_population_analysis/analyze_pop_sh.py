@@ -44,7 +44,7 @@ if __name__ == "__main__":
                 if "CurrentState" in line or "#" in line:
                     print("Found {}. in {}. Skipping".format(line, popfile))
                 else:
-                    state = int(line.split()[1])-1
+                    state = int(line.split()[1])-1   # -1 for abin code or if states are number from 1 (GS). REASON: arrays with state as dim starts from 0
                     #print(state)
                     populations[step][state] += 1
                     #alive[step] += 1

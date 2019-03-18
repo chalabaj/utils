@@ -17,7 +17,7 @@ from scipy import signal
 def input_check():
     global molecule,natoms,results_file   # same number and molecule for all movies and geoms
     if len(sys.argv) < 2:
-      print("Error: not enought parameters.\nUsage: python ",sys.argv[0]," th/tm/molecule movie.xyz movie2.xyz....")
+      print("Error: not enought parameters.\nUsage: python ",sys.argv[0]," outputfilename ntrajs\n See end of", sys.argv[0],"for default options.")
       sys.exit(1)
     ntrajs = int(sys.argv[2])
     movies  = []
