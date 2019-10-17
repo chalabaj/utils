@@ -1,3 +1,4 @@
+# script analyze movie.xyz file saved XYZ format from multiple trajetories
 import math
 import sys
 import numpy as np
@@ -15,7 +16,7 @@ from scipy import signal
 
 
 def input_check():
-    global molecule,natoms,results_file   # same number and molecule for all movies and geoms
+    global molecule,natoms,results_file   # same number and molecules for all movies and geoms
     if len(sys.argv) < 2:
       print("Error: not enought parameters.\nUsage: python ",sys.argv[0]," outputfilename ntrajs\n See end of", sys.argv[0],"for default options.")
       sys.exit(1)
@@ -25,16 +26,15 @@ def input_check():
     geoms   = []
     results_file = sys.argv[1]   # file used for saving final data
     
-    ##### MODIFIE HERE FOR SPECIFIC MOLECULE: #####
-
+    # add every existing movie.xyz file to list and the go through each movie
     mov_files = []
     for ntr in range(1,ntrajs+1):
-        mov_file = "TRAJ.{}/movie.xyz".format(ntr)
+        mov_file = "TRAJ.{}/movie.xyz".format(ntr)   # check folders names
         cwd = os.getcwd()
         mov_path = os.path.join(cwd,mov_file)
         if os.path.isfile(mov_path):
             movies.append(mov_path)
-            gc = geoms_check(movies[-1],lines_per_mol) #no need to specify order
+            gc = geoms_check(movies[-1],lines_per_mol) # no need to specify order
             #print(gc)
             lines.append(gc[0])
             geoms.append(gc[1])
@@ -102,11 +102,14 @@ def process_movies(movies,geoms):
      
 # DISTANCE MATRIX
 #@profile
-def distance_matrix(xyz):    
+def distance_matrix(xyz):   
+""" 
+calculate distance matrix for geometry at given timestep
+"""
 # all combinations of pairs: list(itertools.combinations(range(natoms),2)) - yet still need to loop over two-indices to call dist func brute force number of combinations len(<-)
 # with open('dist_mat.dat','a') as file_dist_save:  # save dist_mat in file for check if needed
 # np.savetxt(file_dist_save, dist_mat, newline='\n', fmt='%.8e',footer =" ")
-    dist_mat = np.zeros(shape=(natoms-1,natoms),dtype=np.float64) # create empty dist matrix - matrix is not stored for future
+    dist_mat = np.zeros(shape=(natoms-1,natoms),dtype=np.float64) # matrix is uselees upon analysis, not stored for future --> probably faster if I keep one matrix in mem and just rewrite it
     for k in range(0,natoms):
           for l in range(k+1,natoms):
                 v1, v2 = np.array(xyz[k],dtype=np.float64), np.array(xyz[l],dtype=np.float64)
@@ -116,17 +119,19 @@ def distance_matrix(xyz):
 
     return dist_mat
 
-###############################################
+# GEOMETRY ANALYSIS
+#@profile 
+def analyze_novec(dist_mat): 
+""" 
+analyze atoms connectivity and decide which fragments are formed
+for each molecule the following decision tree is different 
+---> need some clustering algortihm with chemical analysis
+"""
 #ConstantS - CRITERIA FOR GEOMETRY ANALYSIS 
 C_CF3_diss_dist  =  4.30  # distance of CF3 group from center
 C_F_diss_dist = 4.30
 C_CN_diss_dist  =  4.30
 ###############################################
-
-# GEOMETRY ANALYSIS
-#@profile 
-def analyze_novec(dist_mat):
-
   channel = 0
   cf3_diss = 0 # how many cf3 groups diss 1,2
   cf_bonds = 0 # bonds in cf3 group = 3
@@ -196,32 +201,33 @@ def channel_statistics(analyze_geoms):
     """
     MODIFIE PARAMETERS FOR EACH TYPE OF MOLECULE (n_channels)
     nstep, timestep depends on simulation number of steps (e.g. nsteps in input.in)
+    Calculate normalized populations for each reaction channel and add standard error on 95 % confidence interval
     """
     channel_pop = np.zeros(shape=(n_steps,n_channels),dtype=np.float64)   # 2D array, 0 column time, rest {1,n_channel} are channels
     procentual = 1         # 0 - 1 or 0-100
     
     print("Collectiong data. Total number of geoms: ",len(analyze_geoms)-1)
     for rec in range(0,len(analyze_geoms)-1):              # first row is 0,0 entry from array init
-      channel = int(analyze_geoms[rec][1])
-      step    = int(analyze_geoms[rec][0])-1 #timerow from 1, not from 0
-      channel_pop[step][channel] = channel_pop[step][channel] + 1  
+      channel = int(analyze_geoms[rec][1])   # read channel at timestep step
+      step    = int(analyze_geoms[rec][0])-1 # timerow from 1, not from 0
+      channel_pop[step][channel] = channel_pop[step][channel] + 1  # increase population for given channel
     np.savetxt("analyze_geoms", analyze_geoms, fmt='%7.3f',delimiter=' ')
     nsteps = n_steps
     nstates = n_channels  
-    timerow = np.arange(1,nsteps+1,1,dtype=np.float64).reshape(nsteps,1) * 0.024 * timestep
-    stde = np.zeros(shape=(nsteps,nstates),dtype=np.float64)
-    populations = np.copy(channel_pop)
-    row_norms = populations.sum(axis=1) # row sum is axis=1 opposite to numpe row priority
+    timerow = np.arange(1,nsteps+1,1,dtype=np.float64).reshape(nsteps,1) * 0.024 * timestep # 0.024 conversion factor AU_FS
+    stde = np.zeros(shape=(nsteps,nstates),dtype=np.float64)   # create matrix for std. deviations
+    populations = np.copy(channel_pop)  # same dimension as before 
+    row_norms = populations.sum(axis=1) # row sum is axis=1 (column) opposite to numpy row priority
     row_norms_mat = np.resize(row_norms,(nstates,nsteps)).transpose() # to broadcast the following division, need the same dimensions
     norm_pop = np.divide(populations,row_norms_mat)  # Normalization populations
     
     #Calc std binomidal distribution 95% reliability
     for step in range(0,nsteps):     
         for st in range(nstates):
-            if (step == 100) or (not step % (200+(st*20))):
+            if (step == 100) or (not step % (200+(st*20))):  # we want error bars shifted for each channel so they dont overlap
                 stde[step][st]=math.sqrt(norm_pop[step][st]*(1-norm_pop[step][st])/row_norms.reshape(nsteps,1)[step])*1.96  # binobidal normal dist    
    
-    alive_mat=np.concatenate((timerow,row_norms.reshape(nsteps,1)),axis=1)	
+    alive_mat=np.concatenate((timerow,row_norms.reshape(nsteps,1)),axis=1)	# alive trajectorie for each timestep
     with open ("alive.dat", "w") as ad:
         np.savetxt(ad, alive_mat, fmt='%7.3f',delimiter=' ') 
    
@@ -229,13 +235,13 @@ def channel_statistics(analyze_geoms):
         # take only individual state due to xmgrace import XYDY: time pop_st std_st
         outfile="channel_{}.dat".format(st+1)
         norm_pop_st = norm_pop[:,st]
-        norm_pop_st_smooth = scipy.signal.savgol_filter(norm_pop_st, 33, 7).reshape(nsteps,1)
+        norm_pop_st_smooth = scipy.signal.savgol_filter(norm_pop_st, 33, 7).reshape(nsteps,1)  # smooth data since number of trajetories is ussually very low < 100
         st_stde = stde[:,st].reshape(nsteps,1) 
         st_pop_stde = np.concatenate((timerow, norm_pop_st_smooth, st_stde),axis=1)	
         with open (str(outfile), "w") as pd:
             np.savetxt(pd, st_pop_stde, fmt='%7.3f', delimiter=' ') 
    
-        # matrix with all channels
+        # population matrix with all channels
         if st == 0: 
              time_norm_pop = np.concatenate((timerow, norm_pop_st_smooth),axis=1)
         else:
@@ -250,20 +256,18 @@ def channel_statistics(analyze_geoms):
 ##############################################
 if __name__ == "__main__":
       np.set_printoptions(linewidth  = 150)  # avoid text wrapping in console when printing np.array for checks
-      natoms = 12
-      lines_per_mol = 14
+      natoms = 12                 # need to set for each molecule
+      lines_per_mol = natoms + 2  # XYZ format
       AU_TO_FS   = 0.024189
-      n_channels = 7
-      n_steps    = 2100 # number of simulation steps, +1 since upper limit index is exluded
-      timestep   = 10        # 
+      n_channels = 7              # number of possible reaction channel
+      n_steps    = 2100           # number of simulation steps, +1 since upper limit index is exluded
+      timestep   = 10             # from input.in file for ABIN or SNAFU simulation  
       movies,geoms=input_check()
       print("Geoms: ",geoms)
       print("#######################\n")
       
       analyze_geoms  = process_movies(movies,geoms)   # np.array returning time, channel over all geoms
-      #print(analyze_geoms)
       statistic      = channel_statistics(analyze_geoms)
-      
-      
+     
       sys.exit(0)
       #distance_matrix(movies)
