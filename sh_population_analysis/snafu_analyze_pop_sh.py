@@ -1,4 +1,4 @@
-# usage python analyze_pop.py 8 100 2100
+# usage python analyze_pop.py nstates ntraje steps   [8 100 2100]
 import math
 import sys
 import numpy as np
