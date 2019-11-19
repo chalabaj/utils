@@ -1,6 +1,12 @@
 #!/bin/bash
-# ls | cut -f2 -d"."|  tr "\n" " "   numbers after . newline->space
- 
+# trajs=$(ls | cut -f2 -d"."|  tr "\n" " ")   numbers after . newline->space
+for aa in "${trajs[@]}"
+do
+cd SNAFU-TRAJ.$aa
+echo $PWD
+cd ..
+done
+
 # lowest ener found, see lowerener file 901.48626117767878
 if [[ -e ener_*.dat ]];then
 rm ener_*.dat en_*.dat
