@@ -1,5 +1,9 @@
 #!/bin/bash
 # trajs=$(ls | cut -f2 -d"."|  tr "\n" " ")   numbers after . newline->space
+if [[ `expr $a % 20` -eq 0 ]];then
+
+nodes=$(qstat -f | grep "nq-" | awk '{print $1}' |  cut -f1 -d"@")
+
 for aa in "${trajs[@]}"
 do
 cd SNAFU-TRAJ.$aa
