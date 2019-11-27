@@ -8,3 +8,5 @@ print(doc_path, csvfile)
 csvfile_path= os.path.join(doc_path,csvfile[0])
 print(csvfile_path)
 type(csvfile_path)
+
+http://greg-ashton.physics.monash.edu/setting-nice-axes-labels-in-matplotlib.html  matplotlib axes
